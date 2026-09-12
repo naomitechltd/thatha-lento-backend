@@ -26,6 +26,7 @@ db.exec(`
     special_active INTEGER NOT NULL DEFAULT 0,
     special_percent INTEGER NOT NULL DEFAULT 0,
     image_url TEXT NOT NULL DEFAULT '',
+    color_images TEXT NOT NULL DEFAULT '{}',
     created_by TEXT,
     created_at INTEGER NOT NULL
   );
@@ -53,15 +54,31 @@ db.exec(`
     gender TEXT,
     created_at INTEGER NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
 `);
 
-// Migration: add image_url to a products table created before this column
-// existed (the CREATE TABLE above only affects brand-new tables). Safe to
-// run every startup — ignored once the column is already there.
-try {
-  db.exec("ALTER TABLE products ADD COLUMN image_url TEXT NOT NULL DEFAULT ''");
-} catch (e) {
-  // column already exists — fine
+// Migrations for columns added after the tables above already existed in a
+// live database. Each is safe to run every startup — ignored once applied.
+const migrations = [
+  "ALTER TABLE products ADD COLUMN image_url TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE products ADD COLUMN color_images TEXT NOT NULL DEFAULT '{}'",
+];
+for (const sql of migrations) {
+  try {
+    db.exec(sql);
+  } catch (e) {
+    // column already exists — fine
+  }
+}
+
+// Seed a default currency so /settings always has something to return.
+const existingCurrency = db.prepare("SELECT value FROM settings WHERE key = 'currency_symbol'").get();
+if (!existingCurrency) {
+  db.prepare("INSERT INTO settings (key, value) VALUES ('currency_symbol', '$')").run();
 }
 
 module.exports = db;
