@@ -25,6 +25,7 @@ db.exec(`
     gender TEXT NOT NULL,
     special_active INTEGER NOT NULL DEFAULT 0,
     special_percent INTEGER NOT NULL DEFAULT 0,
+    image_url TEXT NOT NULL DEFAULT '',
     created_by TEXT,
     created_at INTEGER NOT NULL
   );
@@ -53,5 +54,14 @@ db.exec(`
     created_at INTEGER NOT NULL
   );
 `);
+
+// Migration: add image_url to a products table created before this column
+// existed (the CREATE TABLE above only affects brand-new tables). Safe to
+// run every startup — ignored once the column is already there.
+try {
+  db.exec("ALTER TABLE products ADD COLUMN image_url TEXT NOT NULL DEFAULT ''");
+} catch (e) {
+  // column already exists — fine
+}
 
 module.exports = db;
