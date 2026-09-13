@@ -11,6 +11,8 @@ db.exec(`
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    phone TEXT NOT NULL DEFAULT '',
+    location TEXT NOT NULL DEFAULT '',
     created_at INTEGER NOT NULL
   );
 
@@ -37,6 +39,10 @@ db.exec(`
     items TEXT NOT NULL,
     total REAL NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending payment',
+    recipient_name TEXT NOT NULL DEFAULT '',
+    phone TEXT NOT NULL DEFAULT '',
+    location TEXT NOT NULL DEFAULT '',
+    terms_accepted_at INTEGER,
     created_at INTEGER NOT NULL
   );
 
@@ -66,6 +72,12 @@ db.exec(`
 const migrations = [
   "ALTER TABLE products ADD COLUMN image_url TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE products ADD COLUMN color_images TEXT NOT NULL DEFAULT '{}'",
+  "ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE users ADD COLUMN location TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE orders ADD COLUMN recipient_name TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE orders ADD COLUMN phone TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE orders ADD COLUMN location TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE orders ADD COLUMN terms_accepted_at INTEGER",
 ];
 for (const sql of migrations) {
   try {
