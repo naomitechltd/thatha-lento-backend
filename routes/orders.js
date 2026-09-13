@@ -11,11 +11,18 @@ function serialize(row) {
 }
 
 // Customer: place an order. Prices and stock are re-checked here — never trust
-// totals or availability sent from the browser.
+// totals or availability sent from the browser. Delivery details and terms
+// acceptance are required so every order carries who/where it goes to.
 router.post("/", requireUser, (req, res) => {
-  const { items } = req.body || {};
+  const { items, phone, location, termsAccepted } = req.body || {};
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: "Your bag is empty." });
+  }
+  if (!phone || !location) {
+    return res.status(400).json({ error: "A phone number and location are required for delivery." });
+  }
+  if (termsAccepted !== true) {
+    return res.status(400).json({ error: "You must agree to the Terms of Use to place an order." });
   }
 
   let total = 0;
@@ -44,16 +51,23 @@ router.post("/", requireUser, (req, res) => {
       db.prepare("UPDATE products SET stock = stock - ? WHERE id = ?").run(item.qty, product.id);
     }
 
+    const user = db.prepare("SELECT name FROM users WHERE email = ?").get(req.user.email);
+
     const order = {
       id: uid(),
       user_email: req.user.email,
       items: JSON.stringify(verifiedItems),
       total: +total.toFixed(2),
       status: "pending payment",
+      recipient_name: user ? user.name : req.user.name || "",
+      phone: String(phone).trim(),
+      location: String(location).trim(),
+      terms_accepted_at: Date.now(),
       created_at: Date.now(),
     };
     db.prepare(
-      "INSERT INTO orders (id,user_email,items,total,status,created_at) VALUES (@id,@user_email,@items,@total,@status,@created_at)"
+      `INSERT INTO orders (id,user_email,items,total,status,recipient_name,phone,location,terms_accepted_at,created_at)
+       VALUES (@id,@user_email,@items,@total,@status,@recipient_name,@phone,@location,@terms_accepted_at,@created_at)`
     ).run(order);
     return order;
   });
