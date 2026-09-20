@@ -45,3 +45,118 @@ router.post("/register", async (req, res) => {
     const token = signUserToken(row);
     res.status(201).json({
       token,
+      user: { id: row.id, name: row.name, email: row.email, phone: row.phone, location: row.location },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to register." });
+  }
+});
+
+// POST /auth/login
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!isValidEmail(email) || !password) {
+      return res.status(400).json({ error: "Email and password are required." });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const { rows } = await db.query("SELECT * FROM users WHERE email = $1", [normalizedEmail]);
+    if (rows.length === 0) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
+    const user = rows[0];
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
+    const token = signUserToken(user);
+    res.json({
+      token,
+      user: { id: user.id, name: user.name, email: user.email, phone: user.phone, location: user.location },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to log in." });
+  }
+});
+
+// GET /auth/me — current logged-in user
+router.get("/me", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      "SELECT id, name, email, phone, location, created_at FROM users WHERE id = $1",
+      [req.user.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: "User not found." });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load profile." });
+  }
+});
+
+// PATCH /auth/me — update own profile (name/phone/location; not email/password here)
+router.patch("/me", requireAuth, async (req, res) => {
+  try {
+    const { name, phone, location } = req.body || {};
+    const { rows } = await db.query("SELECT * FROM users WHERE id = $1", [req.user.id]);
+    if (rows.length === 0) return res.status(404).json({ error: "User not found." });
+
+    const existing = rows[0];
+    const next = {
+      name: name ?? existing.name,
+      phone: phone ?? existing.phone,
+      location: location ?? existing.location,
+    };
+
+    await db.query(
+      "UPDATE users SET name=$1, phone=$2, location=$3 WHERE id=$4",
+      [next.name, next.phone, next.location, req.user.id]
+    );
+
+    res.json({ id: req.user.id, email: existing.email, ...next });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update profile." });
+  }
+});
+
+// POST /auth/admin/login — separate login for the admin dashboard
+router.post("/admin/login", async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!isValidEmail(email) || !password) {
+      return res.status(400).json({ error: "Email and password are required." });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const { rows } = await db.query("SELECT * FROM admins WHERE email = $1", [normalizedEmail]);
+    if (rows.length === 0) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
+    const admin = rows[0];
+    const ok = await bcrypt.compare(password, admin.password_hash);
+    if (!ok) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
+    const token = signAdminToken(admin);
+    res.json({ token, admin: { email: admin.email, name: admin.name, role: admin.role } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to log in." });
+  }
+});
+
+// GET /auth/admin/me
+router.get("/admin/me", requireAdmin("limited"), (req, res) => {
+  res.json(req.admin);
+});
+
+module.exports = router;
+  
