@@ -74,6 +74,8 @@ async function init() {
       created_at BIGINT NOT NULL
     );
 
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference TEXT;
+
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
