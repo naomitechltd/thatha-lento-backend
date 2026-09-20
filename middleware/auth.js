@@ -1,40 +1,47 @@
 const jwt = require("jsonwebtoken");
 
+if (!process.env.JWT_SECRET) {
+  console.error("JWT_SECRET is not set. Add it in Render Environment variables.");
+  process.exit(1);
+}
+
+const SECRET = process.env.JWT_SECRET;
+
+// Role hierarchy: higher number = more access
+const ADMIN_LEVELS = { limited: 1, full: 2 };
+
+function signUserToken(user) {
+  return jwt.sign(
+    { type: "user", id: user.id, email: user.email, name: user.name },
+    SECRET,
+    { expiresIn: "30d" }
+  );
+}
+
+function signAdminToken(admin) {
+  return jwt.sign(
+    { type: "admin", email: admin.email, name: admin.name, role: admin.role },
+    SECRET,
+    { expiresIn: "7d" }
+  );
+}
+
 function getToken(req) {
   const header = req.headers.authorization || "";
   const [scheme, token] = header.split(" ");
-  return scheme === "Bearer" ? token : null;
+  if (scheme !== "Bearer" || !token) return null;
+  return token;
 }
 
-function requireUser(req, res, next) {
+// Requires a valid user (customer) token. Sets req.user = { id, email, name }
+function requireAuth(req, res, next) {
   const token = getToken(req);
-  if (!token) return res.status(401).json({ error: "Log in to continue." });
+  if (!token) return res.status(401).json({ error: "Not authenticated." });
+
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    if (payload.type !== "user") throw new Error("wrong token type");
-    req.user = { email: payload.email, name: payload.name };
-    next();
-  } catch (e) {
-    return res.status(401).json({ error: "Your session has expired. Log in again." });
-  }
-}
-
-function requireAdmin(role) {
-  return (req, res, next) => {
-    const token = getToken(req);
-    if (!token) return res.status(401).json({ error: "Admin sign-in required." });
-    try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET);
-      if (payload.type !== "admin") throw new Error("wrong token type");
-      if (role && payload.role !== role) {
-        return res.status(403).json({ error: "You don't have access to this." });
-      }
-      req.admin = { email: payload.email, role: payload.role };
-      next();
-    } catch (e) {
-      return res.status(401).json({ error: "Admin session expired. Sign in again." });
+    const payload = jwt.verify(token, SECRET);
+    if (payload.type !== "user") {
+      return res.status(401).json({ error: "Not authenticated." });
     }
-  };
-}
-
-module.exports = { requireUser, requireAdmin };
+    req.user = { id: payload.id, email: payload.email, name: payload.name };
+    next();
