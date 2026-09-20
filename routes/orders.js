@@ -91,7 +91,7 @@ router.get("/:id", requireAuth, async (req, res) => {
 });
 
 // GET /orders — all orders (admin only)
-router.get("/", requireAdmin("limited"), async (req, res) => {
+router.get("/", requireAdmin("full"), async (req, res) => {
   try {
     const { rows } = await db.query("SELECT * FROM orders ORDER BY created_at DESC");
     res.json(rows.map(serialize));
@@ -102,7 +102,7 @@ router.get("/", requireAdmin("limited"), async (req, res) => {
 });
 
 // PATCH /orders/:id/status — update order status (admin only)
-router.patch("/:id/status", requireAdmin("limited"), async (req, res) => {
+router.patch("/:id/status", requireAdmin("full"), async (req, res) => {
   try {
     const { status } = req.body || {};
     if (!VALID_STATUSES.includes(status)) {

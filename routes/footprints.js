@@ -60,7 +60,7 @@ router.get("/mine", requireAuth, async (req, res) => {
 });
 
 // GET /footprints — all footprints (admin only), for analytics
-router.get("/", requireAdmin("limited"), async (req, res) => {
+router.get("/", requireAdmin("full"), async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 500, 5000);
     const { rows } = await db.query(

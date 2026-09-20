@@ -2,7 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const db = require("../db");
-const { requireAuth, requireAdmin, signUserToken, signAdminToken } = require("../middleware/auth");
+const { requireAuth, signUserToken } = require("../middleware/auth");
 
 const router = express.Router();
 const uid = () => crypto.randomBytes(9).toString("hex");
@@ -125,38 +125,4 @@ router.patch("/me", requireAuth, async (req, res) => {
   }
 });
 
-// POST /auth/admin/login — separate login for the admin dashboard
-router.post("/admin/login", async (req, res) => {
-  try {
-    const { email, password } = req.body || {};
-    if (!isValidEmail(email) || !password) {
-      return res.status(400).json({ error: "Email and password are required." });
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-    const { rows } = await db.query("SELECT * FROM admins WHERE email = $1", [normalizedEmail]);
-    if (rows.length === 0) {
-      return res.status(401).json({ error: "Invalid email or password." });
-    }
-
-    const admin = rows[0];
-    const ok = await bcrypt.compare(password, admin.password_hash);
-    if (!ok) {
-      return res.status(401).json({ error: "Invalid email or password." });
-    }
-
-    const token = signAdminToken(admin);
-    res.json({ token, admin: { email: admin.email, name: admin.name, role: admin.role } });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to log in." });
-  }
-});
-
-// GET /auth/admin/me
-router.get("/admin/me", requireAdmin("limited"), (req, res) => {
-  res.json(req.admin);
-});
-
 module.exports = router;
-  

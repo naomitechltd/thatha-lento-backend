@@ -7,22 +7,11 @@ if (!process.env.JWT_SECRET) {
 
 const SECRET = process.env.JWT_SECRET;
 
-// Role hierarchy: higher number = more access
-const ADMIN_LEVELS = { limited: 1, full: 2 };
-
 function signUserToken(user) {
   return jwt.sign(
     { type: "user", id: user.id, email: user.email, name: user.name },
     SECRET,
     { expiresIn: "30d" }
-  );
-}
-
-function signAdminToken(admin) {
-  return jwt.sign(
-    { type: "admin", email: admin.email, name: admin.name, role: admin.role },
-    SECRET,
-    { expiresIn: "7d" }
   );
 }
 
@@ -50,11 +39,9 @@ function requireAuth(req, res, next) {
   }
 }
 
-// Requires a valid admin token with at least `minLevel` role ("limited" or "full").
-// Sets req.admin = { email, name, role }
-function requireAdmin(minLevel = "limited") {
-  const required = ADMIN_LEVELS[minLevel] || ADMIN_LEVELS.limited;
-
+// Requires a valid admin token. `role` is the minimum role needed ("full" or "bugs");
+// admins with role "full" can access every admin route.
+function requireAdmin(role = "full") {
   return (req, res, next) => {
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: "Admin authentication required." });
@@ -64,11 +51,10 @@ function requireAdmin(minLevel = "limited") {
       if (payload.type !== "admin") {
         return res.status(401).json({ error: "Admin authentication required." });
       }
-      const level = ADMIN_LEVELS[payload.role] || 0;
-      if (level < required) {
+      if (payload.role !== role && payload.role !== "full") {
         return res.status(403).json({ error: "Insufficient admin permissions." });
       }
-      req.admin = { email: payload.email, name: payload.name, role: payload.role };
+      req.admin = { email: payload.email, role: payload.role };
       next();
     } catch (err) {
       return res.status(401).json({ error: "Invalid or expired admin token." });
@@ -76,4 +62,4 @@ function requireAdmin(minLevel = "limited") {
   };
 }
 
-module.exports = { requireAuth, requireAdmin, signUserToken, signAdminToken };
+module.exports = { requireAuth, requireAdmin, signUserToken };
