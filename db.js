@@ -81,6 +81,17 @@ async function init() {
       value TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS reviews (
+      id TEXT PRIMARY KEY,
+      product_id TEXT NOT NULL,
+      user_email TEXT NOT NULL,
+      user_name TEXT NOT NULL DEFAULT '',
+      rating INTEGER NOT NULL,
+      comment TEXT NOT NULL DEFAULT '',
+      created_at BIGINT NOT NULL,
+      UNIQUE(product_id, user_email)
+    );
+
     CREATE TABLE IF NOT EXISTS admins (
       email TEXT PRIMARY KEY,
       name TEXT NOT NULL,
